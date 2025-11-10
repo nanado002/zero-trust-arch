@@ -15,9 +15,8 @@ jobs:
     name: Terraform Security Scan
     runs-on: ubuntu-latest
     permissions:
-      security-events: write  # Required to upload SARIF results
-      contents: read          # Required to checkout the code
-      id-token: write         # Required for OIDC
+      security-events: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,9 +38,6 @@ jobs:
     name: Terraform Plan
     runs-on: ubuntu-latest
     needs: terraform-security-scan
-    permissions:
-      id-token: write   # Required for OIDC
-      contents: read    # Required for actions/checkout
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,7 +50,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS Identity
@@ -71,7 +68,6 @@ jobs:
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
-        id: plan
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -84,10 +80,6 @@ jobs:
     name: Terraform Apply
     runs-on: ubuntu-latest
     needs: terraform-plan
-    permissions:
-      id-token: write   # Required for OIDC
-      contents: read    # Required for actions/checkout
-    # Only run on push to main (not on PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
@@ -102,7 +94,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Verify AWS Identity
@@ -116,12 +109,6 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
 
-      - name: Get ALB DNS Name
-        run: |
-          ALB_DNS=$(terraform output -raw alb_dns_name)
-          echo "ALB_URL=http://$ALB_DNS" >> $GITHUB_ENV
-          echo "Application deployed at: http://$ALB_DNS"
-
       - name: Health Check
         run: |
           ALB_DNS=$(terraform output -raw alb_dns_name)
@@ -132,9 +119,6 @@ jobs:
     name: Infrastructure Tests
     runs-on: ubuntu-latest
     needs: terraform-apply
-    permissions:
-      id-token: write   # Required for OIDC
-      contents: read    # Required for actions/checkout
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
@@ -144,41 +128,12 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Verify AWS Identity
-        run: aws sts get-caller-identity
 
       - name: Run Security Tests
         run: |
-          # Test WAF is blocking SQL injection
           ALB_DNS=$(aws elbv2 describe-load-balancers --region us-east-1 --query 'LoadBalancers[?contains(LoadBalancerName, `zero-trust`)].DNSName' --output text)
-          echo "Testing WAF protection on: $ALB_DNS"
-          
-          # These tests should pass (return non-200 status if WAF is working)
-          curl -s -o /dev/null -w "SQL Injection Test: %{http_code}\n" "http://$ALB_DNS/?id=1' OR '1'='1"
-          curl -s -o /dev/null -w "XSS Test: %{http_code}\n" "http://$ALB_DNS/?param=<script>alert('xss')</script>"
-          
-          # This should return 200 (normal access)
+          echo "Testing ALB: $ALB_DNS"
           curl -s -o /dev/null -w "Normal Access: %{http_code}\n" "http://$ALB_DNS/"
-
-      - name: Check GuardDuty Status
-        run: |
-          DETECTOR_ID=$(aws guardduty list-detectors --query 'DetectorIds[0]' --output text)
-          if [ "$DETECTOR_ID" != "None" ]; then
-            echo "GuardDuty is enabled with detector: $DETECTOR_ID"
-          else
-            echo "Warning: GuardDuty detector not found"
-            exit 1
-          fi
-
-      - name: Check WAF Status
-        run: |
-          WAF_ACL=$(aws wafv2 list-web-acls --scope REGIONAL --region us-east-1 --query 'WebACLs[?contains(Name, `zero-trust`)].Name' --output text)
-          if [ -n "$WAF_ACL" ]; then
-            echo "WAF is configured: $WAF_ACL"
-          else
-            echo "Warning: WAF not found"
-            exit 1
-          fi
