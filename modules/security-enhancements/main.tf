@@ -76,11 +76,6 @@ resource "aws_guardduty_detector" "zero_trust" {
     s3_logs {
       enable = true
     }
-    kubernetes {
-      audit_logs {
-        enable = false
-      }
-    }
     malware_protection {
       scan_ec2_instance_with_findings {
         ebs_volumes {
@@ -93,25 +88,6 @@ resource "aws_guardduty_detector" "zero_trust" {
   tags = var.common_tags
 }
 
-# GuardDuty findings to CloudWatch Events
-resource "aws_cloudwatch_event_rule" "guardduty_findings" {
-  name        = "guardduty-findings-${var.environment}"
-  description = "Capture all GuardDuty findings"
-
-  event_pattern = jsonencode({
-    source      = ["aws.guardduty"]
-    detail-type = ["GuardDuty Finding"]
-  })
-
-  tags = var.common_tags
-}
-
-resource "aws_cloudwatch_event_target" "guardduty_sns" {
-  rule      = aws_cloudwatch_event_rule.guardduty_findings.name
-  target_id = "SendToSNS"
-  arn       = aws_sns_topic.security_alerts.arn
-}
-
 # SNS Topic for security alerts
 resource "aws_sns_topic" "security_alerts" {
   name = "zero-trust-security-alerts-${var.environment}"
@@ -119,19 +95,20 @@ resource "aws_sns_topic" "security_alerts" {
   tags = var.common_tags
 }
 
-# Systems Manager Patch Manager
+# Systems Manager Patch Manager - FIXED VERSION
 resource "aws_ssm_patch_baseline" "zero_trust" {
   name             = "ZeroTrustPatchBaseline-${var.environment}"
   description      = "Zero Trust Patch Baseline for EC2 instances"
   operating_system = "AMAZON_LINUX_2"
 
   approval_rule {
-    approve_after_days = 7
-    compliance_level   = "HIGH"
+    approve_after_days  = 7
+    compliance_level    = "HIGH"
+    enable_non_security = true
 
     patch_filter {
       key    = "CLASSIFICATION"
-      values = ["Security", "Bugfix", "Critical"]
+      values = ["Security", "Bugfix"]
     }
   }
 
