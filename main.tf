@@ -9,31 +9,15 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
-# Your existing Zero Trust infrastructure
-module "zero_trust_infra" {
-  source = "./modules/zero-trust-base"  # You might want to create this for your existing resources
+# Base Zero Trust Infrastructure Module
+module "zero_trust_base" {
+  source = "./modules/zero-trust-base"
   
-  environment = var.environment
-  vpc_cidr    = var.vpc_cidr
+  environment         = var.environment
+  vpc_cidr           = var.vpc_cidr
+  aws_region         = var.aws_region
+  enable_vpc_flow_logs = var.enable_vpc_flow_logs
 }
-
-# Phase 1: Enhanced Security (COMMENTED OUT until modules are ready)
-# module "security_enhancements" {
-#   source = "./modules/security-enhancements"
-#   
-#   environment = var.environment
-#   alb_arn     = module.zero_trust_infra.alb_arn
-#   vpc_id      = module.zero_trust_infra.vpc_id
-# }
-
-# Phase 2: Operational Excellence (COMMENTED OUT until modules are ready)
-# module "operational_excellence" {
-#   source = "./modules/operational-excellence"
-#   
-#   environment       = var.environment
-#   vpc_id            = module.zero_trust_infra.vpc_id
-#   log_retention_days = var.log_retention_days
-# }

@@ -1,4 +1,4 @@
-# Root module variables only
+# Input variables for the base module
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
@@ -21,10 +21,4 @@ variable "enable_vpc_flow_logs" {
   description = "Enable VPC Flow Logs for traffic monitoring"
   type        = bool
   default     = true
-}
-
-variable "log_retention_days" {
-  description = "Number of days to retain CloudWatch logs"
-  type        = number
-  default     = 90
 }
