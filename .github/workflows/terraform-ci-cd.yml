@@ -17,6 +17,7 @@ jobs:
     permissions:
       security-events: write  # Required to upload SARIF results
       contents: read          # Required to checkout the code
+      id-token: write         # Required for OIDC
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,7 +31,6 @@ jobs:
           output: 'trivy-results.sarif'
       
       - name: Upload TFSec results
-        # Updated from @v2 to @v4 to fix deprecation
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
@@ -56,6 +56,9 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
 
       - name: Terraform Init
         run: terraform init
@@ -102,6 +105,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
@@ -140,6 +146,9 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
 
       - name: Run Security Tests
         run: |
