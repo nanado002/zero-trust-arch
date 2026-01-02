@@ -1,0 +1,35 @@
+name: Security Scanning
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Run every Monday at 8 AM
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run TFSec
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'table'
+
+      - name: Checkov Security Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: checkov-results.sarif

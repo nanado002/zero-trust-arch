@@ -91,7 +91,7 @@ resource "aws_guardduty_detector" "zero_trust" {
 # SNS Topic for security alerts
 resource "aws_sns_topic" "security_alerts" {
   name = "zero-trust-security-alerts-${var.environment}"
-  
+
   tags = var.common_tags
 }
 
@@ -123,7 +123,7 @@ resource "aws_ssm_patch_baseline" "zero_trust" {
 # Maintenance window for patching
 resource "aws_ssm_maintenance_window" "patch_window" {
   name     = "zero-trust-patch-${var.environment}"
-  schedule = "cron(0 2 ? * SUN *)"  # Weekly on Sunday 2 AM
+  schedule = "cron(0 2 ? * SUN *)" # Weekly on Sunday 2 AM
   duration = 3
   cutoff   = 1
 

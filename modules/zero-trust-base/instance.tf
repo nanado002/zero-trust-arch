@@ -11,7 +11,7 @@ resource "aws_instance" "web_servers" {
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = aws_key_pair.zero_trust_key.key_name
 
-  user_data = <<-EOF
+  user_data                   = <<-EOF
 #!/bin/bash
   set -euxo pipefail
   (yum -y update || true)
@@ -21,7 +21,7 @@ resource "aws_instance" "web_servers" {
   systemctl enable --now nginx
   echo "<html><body><h1>Web Server ${each.key}</h1><p>Zero Trust Architecture</p></body></html>" > /usr/share/nginx/html/index.html
   EOF
-   user_data_replace_on_change = true
+  user_data_replace_on_change = true
 
 
   tags = {

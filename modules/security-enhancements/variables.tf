@@ -17,8 +17,8 @@ variable "common_tags" {
   description = "Common tags for all resources"
   type        = map(string)
   default = {
-    Project     = "Zero-Trust-Architecture"
-    Terraform   = "true"
+    Project   = "Zero-Trust-Architecture"
+    Terraform = "true"
   }
 }
 
